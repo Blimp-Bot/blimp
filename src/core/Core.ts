@@ -1,4 +1,3 @@
-import "dotenv/config";
 import {
   Client,
   GatewayIntentBits,
@@ -8,12 +7,11 @@ import {
   type ApplicationCommandDataResolvable,
   type ClientEvents,
 } from "discord.js";
-import { file, Glob } from "bun";
+import { Glob } from "bun";
 import type { Command, Event } from "./typings";
 import { err, info, success } from "../utils/logger";
 import { api } from "../api";
 import { env } from "@/env";
-import { hostname } from "os";
 import Moderation from "../modules/management/moderation";
 import Logging from "../modules/management/logging";
 
@@ -76,9 +74,8 @@ export default class CoreBot extends Client {
 
     for (let i = 0; i < fileList.length; i++) {
       const filePwd = fileList[i];
-      const data = (
-        await import(`${process.cwd()}/src/commands/${filePwd}`)
-      )?.default as Command;
+      const data = (await import(`${process.cwd()}/src/commands/${filePwd}`))
+        ?.default as Command;
       if (!data.name) return;
 
       this.commands.set(data.name, {

@@ -1,6 +1,4 @@
-import type { Guild } from "discord.js";
 import { app } from "..";
-import config from "../config";
 import { db } from "@/db";
 import { guildConfig } from "@/db/schema";
 import { eq } from "drizzle-orm";
