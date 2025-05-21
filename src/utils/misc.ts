@@ -1,6 +1,7 @@
 import { app } from "..";
 import { db } from "@/db";
 import { guildConfig } from "@/db/schema";
+import { GuildMember, PermissionsBitField } from "discord.js";
 import { eq } from "drizzle-orm";
 
 export function createId(length: number = 35) {
@@ -9,8 +10,9 @@ export function createId(length: number = 35) {
   for (let i = 0; i < length; i++) {
     chars += str[Math.floor(Math.random() * str.length)];
   }
-  return str;
+  return chars;
 }
+
 
 export function updateDisabledCommands(
   currentDisabled: string[],

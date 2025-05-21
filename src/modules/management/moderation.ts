@@ -6,6 +6,8 @@ import {
   Message,
   MessagePayload,
   resolveColor,
+  TextBasedChannel,
+  TextChannel,
   User,
 } from "discord.js";
 import {
@@ -20,7 +22,7 @@ import { Command, ExtendedInteraction } from "@/core/typings";
 import { defaultEmbeds, Embed } from "@/core/Embed";
 import config from "@/config";
 import { infraction, InfractionSelect } from "@/db/schema";
-import { createId } from "@/utils";
+import { createId, err } from "@/utils";
 import { db } from "@/db";
 import { SQL, Placeholder } from "drizzle-orm";
 
@@ -56,57 +58,20 @@ export class BanSystem extends Module {
   public async logic({
     ...data
   }: BanSystemLogic): Promise<InteractionReplyOptions | MessagePayload> {
-    const history:
-      | unknown[]
-      | SQL<unknown>
-      | Placeholder<string, any>
-      | null
-      | undefined = [];
-    if (data.history && data.history > 0) {
-      let messageHistoryLength = data.history > 24 ? 24 : data.history;
-      let messageHistory = await data.ctx.channel?.messages.fetch({
-        limit: 100,
-      });
-
-      let lastMessageId = null;
-
-      while (history.length < messageHistoryLength) {
-        const userMessages = messageHistory
-          ?.filter((f) => f.author.id === data.user.id)
-          .toJSON()
-          .slice(0, 24) as Message<boolean>[];
-
-        history.push(
-          ...userMessages.map((z) => ({
-            id: z.id,
-            content: z.content,
-            time: z.createdTimestamp,
-            edited: z.editedTimestamp,
-            reference: z.reference,
-          }))
-        );
-
-        if (userMessages.length < 24) {
-          break;
-        }
-
-        lastMessageId = userMessages[userMessages.length - 1]?.id || undefined;
-
-        messageHistory = await data.ctx.channel?.messages.fetch({
-          limit: 100,
-          before: lastMessageId,
-        });
-      }
-    }
-
-    const uId = createId(15);
+    const history = await fetchMessages(
+      data.ctx.channel,
+      data.user.id,
+      data.history
+    );
+    const uId = createId(35);
+    const silenced = typeof data.silent !== "boolean" ? true : false;
 
     //@ts-ignore
     return this.guild.members.cache
       .find((f) => f.id === data.user.id)
       ?.ban({
         reason: data.reason,
-        deleteMessageSeconds: 60 * 60 * 15,
+        deleteMessageSeconds: 60 * 60 * 60,
       })
       .then(async () => {
         return (await db
@@ -118,14 +83,14 @@ export class BanSystem extends Module {
             moderatorId: data.ctx.user.id,
             userId: data.user.id,
             id: uId,
-            silenced: data.silent,
+            silenced,
             proofUrl: data.proof?.url || null,
             history: history.length > 0 ? history : null,
           })
           .execute()
           .then(() => {
             return {
-              flags: data.silent ? ["Ephemeral"] : [],
+              flags: silenced ? ["Ephemeral"] : [],
               embeds: [
                 new Embed({
                   color: resolveColor(config.colors.success),
@@ -134,7 +99,7 @@ export class BanSystem extends Module {
                     {
                       name: "Options",
                       value: `>>> ${moduleValid(
-                        data.silent,
+                        silenced,
                         "Silenced?"
                       )}\n ${moduleValid(
                         data.history,
@@ -155,7 +120,7 @@ export class BanSystem extends Module {
           })
           .catch(() => {
             return {
-              flags: data.silent ? ["Ephemeral"] : [],
+              flags: ["Ephemeral"],
               embeds: [
                 new Embed({
                   color: resolveColor(config.colors.error),
@@ -165,9 +130,10 @@ export class BanSystem extends Module {
             } as MessageResponse;
           })) as MessageResponse;
       })
-      .catch(() => {
+      .catch((error) => {
+        err(`${error}`);
         return {
-          flags: data.silent ? ["Ephemeral"] : [],
+          flags: ["Ephemeral"],
           embeds: [
             new Embed({
               color: resolveColor(config.colors.error),
@@ -222,45 +188,13 @@ export class WarningSystem extends Module {
   public async logic({
     ...data
   }: WarningSystemLogic): Promise<InteractionReplyOptions | MessagePayload> {
-    const history = [];
-    if (data.history && data.history > 0) {
-      let messageHistoryLength = data.history > 24 ? 24 : data.history;
-      let messageHistory = await data.ctx.channel?.messages.fetch({
-        limit: 100,
-      });
-
-      let lastMessageId = null;
-
-      while (history.length < messageHistoryLength) {
-        const userMessages = messageHistory
-          ?.filter((f) => f.author.id === data.user.id)
-          .toJSON()
-          .slice(0, 24) as Message<boolean>[];
-
-        history.push(
-          ...userMessages.map((z) => ({
-            id: z.id,
-            content: z.content,
-            time: z.createdTimestamp,
-            edited: z.editedTimestamp,
-            reference: z.reference,
-          }))
-        );
-
-        if (userMessages.length < 24) {
-          break;
-        }
-
-        lastMessageId = userMessages[userMessages.length - 1]?.id || undefined;
-
-        messageHistory = await data.ctx.channel?.messages.fetch({
-          limit: 100,
-          before: lastMessageId,
-        });
-      }
-    }
-
     const uId = createId(15);
+    const history = await fetchMessages(
+      data.ctx.channel,
+      data.user.id,
+      data.history
+    );
+    const silenced = typeof data.silent !== "boolean" ? true : false;
     return await db
       .insert(infraction)
       .values({
@@ -271,14 +205,14 @@ export class WarningSystem extends Module {
         userId: data.user.id,
         id: uId,
         permanent: data.permanant,
-        silenced: data.silent,
+        silenced: silenced,
         proofUrl: data.proof?.url || null,
         history: history.length > 0 ? history : null,
       })
       .execute()
       .then(() => {
         return {
-          flags: data.silent ? ["Ephemeral"] : [],
+          flags: silenced ? ["Ephemeral"] : [],
           embeds: [
             new Embed({
               color: resolveColor(config.colors.success),
@@ -287,7 +221,7 @@ export class WarningSystem extends Module {
                 {
                   name: "Options",
                   value: `>>> ${moduleValid(
-                    data.silent,
+                    silenced,
                     "Silenced?"
                   )}\n ${moduleValid(
                     data.permanant,
@@ -309,9 +243,10 @@ export class WarningSystem extends Module {
           ],
         } as MessageResponse;
       })
-      .catch(() => {
+      .catch((error) => {
+        err(`${error}`);
         return {
-          flags: data.silent ? ["Ephemeral"] : [],
+          flags: ["Ephemeral"],
           embeds: [
             new Embed({
               color: resolveColor(config.colors.error),
@@ -343,4 +278,52 @@ export class WarningSystem extends Module {
       },
     });
   }
+}
+
+export async function fetchMessages(
+  channel: TextBasedChannel | null,
+  userId: string,
+  history: number | null = 0
+) {
+  const historyMessages = [];
+
+  if (!channel) return historyMessages;
+  if (history && history > 0) {
+    let messageHistoryLength = history > 24 ? 24 : history;
+    let messageHistory = await channel.messages.fetch({
+      limit: 100,
+    });
+
+    let lastMessageId: string | undefined = undefined;
+
+    while (historyMessages.length < messageHistoryLength) {
+      const userMessages = messageHistory
+        ?.filter((f) => f.author.id === userId)
+        .toJSON()
+        .slice(0, 24) as Message<boolean>[];
+
+      historyMessages.push(
+        //@ts-ignore
+        ...userMessages.map((z) => ({
+          id: z.id,
+          content: z.content,
+          time: z.createdTimestamp,
+          edited: z.editedTimestamp,
+          reference: z.reference,
+        }))
+      );
+
+      if (userMessages.length < 24) {
+        break;
+      }
+
+      lastMessageId = userMessages[userMessages.length - 1]?.id || undefined;
+
+      messageHistory = await channel.messages.fetch({
+        limit: 100,
+        before: lastMessageId,
+      });
+    }
+  }
+  return historyMessages;
 }

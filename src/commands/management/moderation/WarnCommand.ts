@@ -59,11 +59,11 @@ export default {
   run: async ({ ctx, client, args }) => {
     const user = args.getUser("target", true);
     const reason = args.getString("reason", true);
-    const silent = args.getBoolean("silent") || true;
+    const silent = args.getBoolean("silent");
     const permanant = args.getBoolean("permanant") || true;
     const proof = args.getAttachment("proof");
     const history = args.getNumber("history");
-    const remove = args.getBoolean("remove") || true;
+    const remove = args.getBoolean("remove");
 
     const sys = await client.moderation.warn(ctx.guild as Guild);
     const valid = sys.valid([
