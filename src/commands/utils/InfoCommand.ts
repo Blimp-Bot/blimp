@@ -8,6 +8,7 @@ import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   GuildMember,
+  parseEmoji,
   resolveColor,
 } from "discord.js";
 
@@ -82,9 +83,206 @@ export default {
       ],
     },
   ],
-  run: ({ ctx, client, args }) => {
+  run: async ({ ctx, client, args }) => {
     const subCommand = args.getSubcommand(true) as string;
     switch (subCommand.toLowerCase()) {
+      case "server": {
+        const guild = ctx.guild;
+        if (!guild)
+          return ctx.reply({
+            embeds: [defaultEmbeds["unexpected-error"](new Error())],
+          });
+
+        const owner = await guild.fetchOwner();
+
+        return ctx.reply({
+          flags: ["Ephemeral"],
+          embeds: [
+            new Embed({
+              author: {
+                name: `Server Information`,
+                iconURL: guild.iconURL() ?? undefined,
+              },
+              fields: [
+                {
+                  name: "Name",
+                  value: `${guild.name} (\`${guild.id}\`)`,
+                  inline: true,
+                },
+                {
+                  name: "Owner",
+                  value: `${owner.user.tag} (\`${owner.id}\`)`,
+                  inline: true,
+                },
+                {
+                  name: "Created At",
+                  value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,
+                  inline: true,
+                },
+                {
+                  name: "Members",
+                  value: `Total: ${guild.memberCount}`,
+                  inline: true,
+                },
+                {
+                  name: "Channels",
+                  value: `Total: ${guild.channels.cache.size}`,
+                  inline: true,
+                },
+                {
+                  name: "Roles",
+                  value: `Total: ${guild.roles.cache.size}`,
+                  inline: true,
+                },
+              ],
+              thumbnail: guild.iconURL()
+                ? { url: guild.iconURL({ size: 128 }) as string }
+                : undefined,
+              image: guild.bannerURL()
+                ? { url: guild.bannerURL({ size: 1024 }) as string }
+                : undefined,
+            }),
+          ],
+        });
+      }
+      case "emoji": {
+        const emojiStr = args.getString("emojis", true);
+        const emojiRegex = /<a?:\w+:\d+>/g;
+        const customEmojis = emojiStr.match(emojiRegex);
+
+        if (!customEmojis) {
+          return ctx.reply({
+            flags: ["Ephemeral"],
+            embeds: [
+              new Embed({
+                description:
+                  "Could not find any custom emojis in your message. Unicode emojis are not supported.",
+              }),
+            ],
+          });
+        }
+
+        const embeds: Embed[] = [];
+
+        for (const emoji of customEmojis) {
+          const parsed = parseEmoji(emoji);
+          if (parsed && parsed.id) {
+            const url = `https://cdn.discordapp.com/emojis/${parsed.id}.${
+              parsed.animated ? "gif" : "png"
+            }`;
+            embeds.push(
+              new Embed({
+                author: { name: `Emoji: ${parsed.name}` },
+                description: `[Click here to download](${url})`,
+                thumbnail: { url },
+                fields: [
+                  {
+                    name: "Name",
+                    value: parsed.name as string,
+                    inline: true,
+                  },
+                  { name: "ID", value: parsed.id, inline: true },
+                  {
+                    name: "Animated",
+                    value: String(parsed.animated),
+                    inline: true,
+                  },
+                ],
+              })
+            );
+          }
+        }
+
+        if (embeds.length === 0) {
+          return ctx.reply({
+            flags: ["Ephemeral"],
+            embeds: [
+              new Embed({
+                description: "Could not parse any custom emojis.",
+              }),
+            ],
+          });
+        }
+
+        return ctx.reply({
+          flags: ["Ephemeral"],
+          embeds: embeds.slice(0, 10),
+        });
+      }
+      case "banner": {
+        const user = args.getUser("target");
+        if (user) {
+          const fetchedUser = await user.fetch(true);
+          if (!fetchedUser.banner) {
+            return ctx.reply({
+              flags: ["Ephemeral"],
+              embeds: [
+                new Embed({
+                  color: resolveColor(config.colors.error),
+                  description: `${config.emojis.cross} This user does not have a banner.`,
+                }),
+              ],
+            });
+          }
+          return ctx.reply({
+            flags: ["Ephemeral"],
+            embeds: [
+              new Embed({
+                author: {
+                  name: `${fetchedUser.username}'s Banner`,
+                  url: fetchedUser.bannerURL({ size: 1024 }) ?? undefined,
+                },
+                image: {
+                  url: fetchedUser.bannerURL({ size: 1024 }) as string,
+                },
+              }),
+            ],
+          });
+        } else {
+          if (!ctx.guild?.banner) {
+            return ctx.reply({
+              flags: ["Ephemeral"],
+              embeds: [
+                new Embed({
+                  color: resolveColor(config.colors.error),
+                  description: `${config.emojis.cross} This server does not have a banner.`,
+                }),
+              ],
+            });
+          }
+          return ctx.reply({
+            flags: ["Ephemeral"],
+            embeds: [
+              new Embed({
+                author: {
+                  name: `${ctx.guild.name}'s Banner`,
+                  url: ctx.guild.bannerURL({ size: 1024 }) ?? undefined,
+                },
+                image: {
+                  url: ctx.guild.bannerURL({ size: 1024 }) as string,
+                },
+              }),
+            ],
+          });
+        }
+      }
+      case "avatar": {
+        const user = args.getUser("target", true);
+        return ctx.reply({
+          flags: ["Ephemeral"],
+          embeds: [
+            new Embed({
+              author: {
+                name: `${user.username}'s Avatar`,
+                url: user.displayAvatarURL({ size: 1024 }),
+              },
+              image: {
+                url: user.displayAvatarURL({ size: 1024 }),
+              },
+            }),
+          ],
+        });
+      }
       case "user":
         const user = args.getUser("target", true);
         const member = ctx.guild?.members.cache.find(
