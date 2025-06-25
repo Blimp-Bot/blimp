@@ -23,59 +23,7 @@ export default {
     interaction.member = interaction.guild?.members.cache.find(
       (f) => f.id === interaction.user.id
     ) as GuildMember;
-    if (interaction.isButton() && interaction.guild) {
-      const id = interaction.customId;
-
-      const [, , , uId, roleId] = id.split("_");
-      if (uId && roleId) {
-        const reactionRoleData = await db
-          .select()
-          .from(reactionRole)
-          .where(
-            and(
-              eq(reactionRole.uniqueId, uId),
-              eq(reactionRole.id, interaction.guild.id)
-            )
-          );
-
-        if (!reactionRoleData) return;
-
-        const role = interaction.guild.roles.cache.find((f) => f.id === roleId);
-        if (!role) return;
-
-        if (interaction.member.roles.cache.has(role.id)) {
-          interaction.member.roles
-            .remove(role)
-            .then(() => {
-              interaction.reply({
-                flags: ["Ephemeral"],
-                content: `${config.emojis.tick} <@&${role.id}> has been removed from you.`,
-              });
-            })
-            .catch(() => {
-              interaction.reply({
-                flags: ["Ephemeral"],
-                content: `${config.emojis.cross} Failed to remove <@&${role.id}> from you.`,
-              });
-            });
-        } else {
-          interaction.member.roles
-            .add(role)
-            .then(() => {
-              interaction.reply({
-                flags: ["Ephemeral"],
-                content: `${config.emojis.tick} You have been given <@&${role.id}>`,
-              });
-            })
-            .catch(() => {
-              interaction.reply({
-                flags: ["Ephemeral"],
-                content: `${config.emojis.tick} Failed to give you <@&${role.id}>`,
-              });
-            });
-        }
-      }
-    }
+  
     if (interaction.isCommand() && interaction.guild) {
       const cmdName = interaction.commandName
         ? interaction.commandName.toLowerCase()
