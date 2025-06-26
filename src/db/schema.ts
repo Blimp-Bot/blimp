@@ -19,7 +19,7 @@ export const guildConfig = backendSchema.table("guild_config", {
   enabledLogs: text("enabled_loggers")
     .array()
     .notNull()
-    .default(["moderation", "memberAdd"]),
+    .default(["guildMemberAdd", "guildMemberRemove", "messageDelete"]),
 
   // toggables
   reactionRoles: boolean("reaction_roles").notNull().default(false),
