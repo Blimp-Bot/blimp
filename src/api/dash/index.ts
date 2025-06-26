@@ -168,8 +168,10 @@ export const dash = new Elysia({
       }
     );
   })
-  .get(`/guild/:id`, ({ params }) => {
+  .get(`/guild/:id`, ({ params, headers }) => {
     const guild = app.guilds.cache.find((f) => f.id === params.id);
+    const rawHeaders = headers;
+
     if (!guild) {
       return new Response(
         JSON.stringify({
@@ -182,10 +184,33 @@ export const dash = new Elysia({
       );
     }
 
+    const userData = guild.members.cache.find(
+      (f) => f.id === (rawHeaders["Bearer-User"] as string)
+    );
+
+    if (
+      !userData ||
+      !userData.permissions.has("ManageGuild") ||
+      !userData.permissions.has("Administrator")
+    ) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          data: null,
+        }),
+        {
+          status: 404,
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
-        data: guild,
+        data: {
+          ...guild,
+          members: ["REDACTED_TO_SAVE_RESPONSE_TIME"],
+        },
       }),
       {
         status: 200,

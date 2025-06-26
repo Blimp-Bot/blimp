@@ -96,7 +96,8 @@ export default class CoreBot extends Client {
         })
         .then((data) => {
           success(
-            `Registered ${(data as unknown as Array<any>).length || 0
+            `Registered ${
+              (data as unknown as Array<any>).length || 0
             } commands globally.`
           );
         })
@@ -109,33 +110,41 @@ export default class CoreBot extends Client {
         env.GUILD_ID.split(",").forEach((S_GUILD_ID) => {
           return rest
             .put(
-              Routes.applicationGuildCommands(env.DISCORD_CLIENT_ID!, S_GUILD_ID),
+              Routes.applicationGuildCommands(
+                env.DISCORD_CLIENT_ID!,
+                S_GUILD_ID
+              ),
               {
                 body: commandList,
               }
             )
             .then((data) => {
               success(
-                `Registered ${(data as unknown as Array<any>).length || 0
-                } commands in: ${env.GUILD_ID}`
+                `Registered ${
+                  (data as unknown as Array<any>).length || 0
+                } commands in: ${S_GUILD_ID}`
               );
             })
             .catch((e) => {
               console.log(e);
               err(`Failed to register commands in: ${env.GUILD_ID}`, 0);
             });
-        })
+        });
       } else {
         rest
           .put(
-            Routes.applicationGuildCommands(env.DISCORD_CLIENT_ID!, env.GUILD_ID),
+            Routes.applicationGuildCommands(
+              env.DISCORD_CLIENT_ID!,
+              env.GUILD_ID
+            ),
             {
               body: commandList,
             }
           )
           .then((data) => {
             success(
-              `Registered ${(data as unknown as Array<any>).length || 0
+              `Registered ${
+                (data as unknown as Array<any>).length || 0
               } commands in: ${env.GUILD_ID}`
             );
           })
