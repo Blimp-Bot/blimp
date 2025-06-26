@@ -1,7 +1,7 @@
 import { app } from "..";
 import { db } from "@/db";
 import { guildConfig } from "@/db/schema";
-import { GuildMember, PermissionsBitField } from "discord.js";
+import { Guild, GuildMember, PermissionsBitField, Sticker } from "discord.js";
 import { eq } from "drizzle-orm";
 
 export function createId(length: number = 35) {
@@ -12,7 +12,6 @@ export function createId(length: number = 35) {
   }
   return chars;
 }
-
 
 export function updateDisabledCommands(
   currentDisabled: string[],
@@ -60,4 +59,13 @@ export async function disabledCommand(name: string, guildId: string) {
 
 export function getCommand(name: string) {
   return app.commands.get(name.toLowerCase());
+}
+
+//TODO! We need to fix this...
+
+export function formatNonCyclicGuildData(guild: Guild): Object {
+  const formattedGuild = guild.toJSON()
+  //@ts-ignore
+  delete formattedGuild.members;
+  return formattedGuild as Object;
 }
